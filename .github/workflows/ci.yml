@@ -1,0 +1,90 @@
+# NAME: what shows up in the GitHub Actions tab
+name: CI — FastAPI Calculator Tests
+
+# WHEN to run this workflow:
+# - every push to any branch
+# - every pull request targeting main
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+
+  # ─────────────────────────────────────────
+  # JOB 1: Unit + Integration Tests
+  # Fast — no browser needed
+  # ─────────────────────────────────────────
+  unit-and-integration:
+    name: Unit and Integration Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Check out your code onto the CI machine
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Install Python
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Step 3: Cache pip downloads so repeat runs are faster
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      # Step 4: Install all dependencies
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Step 5: Run unit tests
+      - name: Run unit tests
+        run: python -m pytest tests/test_operations.py -v
+
+      # Step 6: Run integration tests
+      - name: Run integration tests
+        run: python -m pytest tests/test_main.py -v
+
+  # ─────────────────────────────────────────
+  # JOB 2: End-to-End Tests
+  # Needs a real browser — runs after Job 1
+  # ─────────────────────────────────────────
+  e2e:
+    name: End-to-End Tests (Playwright)
+    runs-on: ubuntu-latest
+    needs: unit-and-integration
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-e2e-${{ hashFiles('requirements.txt') }}
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Install Chromium browser + all system dependencies it needs
+      - name: Install Playwright browsers
+        run: playwright install chromium --with-deps
+
+      # Start FastAPI server in the background, then run E2E tests
+      - name: Start server and run E2E tests
+        run: |
+          python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 &
+          sleep 3
+          python -m pytest tests/test_e2e.py -v
