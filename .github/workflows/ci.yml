@@ -79,8 +79,8 @@ jobs:
         run: pip install -r requirements.txt
 
       # Install Chromium browser + all system dependencies it needs
-      - name: Install Playwright browsers
-        run: playwright install chromium --with-deps
+     - name: Install Playwright browsers
+       run: python -m playwright install chromium --with-deps
 
       # Start FastAPI server in the background, then run E2E tests
       - name: Start server and run E2E tests
